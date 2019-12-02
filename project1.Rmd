@@ -1,0 +1,373 @@
+---
+title: "MA589 Project 1"
+author: "Wenbin Teng"
+date: "09/18/2019"
+output: md_document
+---
+
+1. (WaRming up) Write (R) functions that return:
+
+(a) The inverse or the transpose inverse of an upper triangular matrix. Call this function $\texttt{inv.upper.tri}$ and provide a transpose argument to specify if the transpose is requested. Hint: use backsolve.
+```{r}
+inv.upper.tri <- function(U,flag) {
+  Ulen <- length(U[1,])
+  Uid <- diag(Ulen)
+  X <- backsolve(U, Uid, transpose = flag)
+  
+  return(X)
+}
+inv.upper.tri(matrix(c(2,0,0,4),2,2),T)
+inv.upper.tri(matrix(c(2,0,0,4),2,2),F)
+```
+
+(b) The $L_2$ norm of vector $\mathbf{v}$ with $n$ entries, defined as $\texttt{norm2}(\mathbf{v})=||\mathbf{v}||=\sqrt{\sum_{i=1}^{n}v_i^2}=\sqrt{v^Tv}$ Quick check: if $\texttt{u <- 1e200 * rep(1, 100)}$, what is $\texttt{norm2(u)}$?
+```{r}
+norm2 <- function(v) {
+  maxv <- max(v)
+  normv <- sqrt(crossprod((v/maxv),(v/maxv)))
+  return(abs(maxv*as.numeric(normv)))
+}
+u <- 1e-200 * rep(1, 100)
+norm2(u)
+```
+```{r}
+norm2.sol <- function(v) {
+  m <- max(abs(v))
+  ifelse(m == 0, 0, m * sqrt(sum(v/m)^2))
+}
+```
+
+(c) The column-normalization $U$ of matrix $A$, $U_{ij} = \frac{A_{ij}}{||A_{¡¤,j}||}$ (call this function $\texttt{normalize.cols}$, and feel free to use $\texttt{norm2}$ above).
+```{r}
+normalize.col <- function(A) {
+  for (j in 1:length(A[1,])) {
+    norm2A <- norm2(A[,j])
+    A[,j] <- A[,j]/norm2A
+  }
+  return(A)
+}
+normalize.col(matrix(c(2,0,0,4),2,2))
+```
+```{r}
+normalize.cols.sol <- function(A) sweep(A, 2, apply(A, 2, norm2),"/")
+```
+
+(d) The projection of vector $\mathbf{a}$ into $\mathbf{u}$ (called as $\texttt{proj(a, u)}$) ,
+
+$$proj_{u}(a)=\frac{u^Ta}{||u||^2}u$$
+Quick check: what is $\texttt{proj(1:100, u)}$, $\texttt{u}$ as in (b) above?
+```{r}
+proj <- function(a, u) {
+  avgua <- mean(u/a)
+  projau <- (crossprod((u/avgua),a)/(norm2(u/avgua))^2) %*% u
+  return(projau/avgua)
+}
+proj(1:100,u)
+```
+```{r}
+proj.sol <- function(a, u) {
+  m <- max(abs(u),abs(a))
+  u <- u/m
+  ifelse(m == 0, 0, sum(u * a)/sum(u * u) * u)
+}
+proj.sol(1: 100, u)
+```
+
+(e) The Vandermonde matrix of vector $\mathbf{a} = [a_i]_{i=1,...,n}$ and degree $d$,
+$$\mathbf{V(a,d)} = \left[\begin{array}
+{rrr}
+1 & a_1 & a_1^2 & ... & a_1^d \\
+1 & a_2 & a_2^2 & ... & a_2^d \\
+: & :   & :     &     & :\\
+1 & a_n & a_n^2 & ... & a_n^d
+\end{array}\right]
+$$
+(called as $\texttt{vandermonde(a, d)}$).
+```{r}
+vandermonde <- function(a, d) {
+  A <- matrix(NA, length(a), d+1) 
+  for (i in 1:length(a)) {
+    for (j in 1:(d+1)) {
+      A[i,j] <- a[i]^(j-1)
+    }
+  }
+  return(A)
+}
+vandermonde(c(1,2,3,4,5),3)
+```
+```{r}
+vandeemonde.sol <- function(a, d) outer(a, 0:d, `^`)
+```
+
+
+
+2. The *machine epsilon* $\epsilon$, can be defined as the smallest floating point (with base 2) such that $1 + \epsilon > 1$, that is, $1 + \epsilon/2 == 1$ in machine precision.
+
+(a) Write a function that returns this value by starting at $\texttt{eps = 1}$ and iteratively
+dividing by 2 until the definition is satisfied.
+```{r}
+mineps <- function() {
+  eps <- 1
+  while (1+eps/2 >1) {
+    eps <- eps/2
+  }
+  return(eps)
+}
+mineps()
+```
+```{r}
+
+```
+
+
+(b) Write a function that computes $f(x) = log(1 + exp(x))$ and then evaluate: $f(0)$,
+$f(-80)$, $f(80)$, and $f(800)$.
+```{r}
+logexpb <- function(x) {
+  value <- log(1+exp(x))
+  return(value)
+}
+logexpb(0);logexpb(-80);logexpb(80);logexpb(800)
+```
+
+(c) How would you specify your function to avoid computations if $x\ll0$ ($x < 0$ and
+$|x|$ is large)? (Hint: $\epsilon$.)
+```{r}
+logexpc <- function(x) {
+  if (exp(x) > mineps()) {
+    value <- log(1+exp(x))
+  } else {value <- 0}
+  
+  return(value)
+}
+logexpc(0)
+logexpc(-1)
+logexpc(-80)
+```
+
+(d) How would you implement your function to not overflow if $x\gg0$?
+```{r}
+logexpd <- function(x) {
+  if (x <= log(mineps())) {
+    value <- 0
+  } else if(x > log(1/mineps())){
+    value <- x
+  } else {
+    value <- log(1+exp(x))
+  }
+  
+  return(value)
+}
+
+```
+(b)-(d)
+```{r}
+LOGEPS <- log(mineps()/2)
+log1pe <- function (x) {
+  l <- ifelse(x > 0, x, 0)
+  x <- ifelse(x > 0, -x, x)
+  ifelse(x <- LOGEPS, l, l + log(1 + exp(x)))
+}
+```
+
+
+3. (QR via Gram-Schmidt) If $A = [a_1,a_2, ¡¤ ¡¤ ¡¤ ,a_p]$ is a $n$-by-$p$ matrix with $n > p$ then we
+can obtain a ¡°thin¡± QR decomposition of $A$ using Gram-Schmidt orthogonalization.
+
+To get $Q$, we start with **u**$_1$ = **a**$_1$, then compute iteratively, for $i = 2, . . . , p$,
+
+$$\mathbf{u_i}=\mathbf{a_i}-\sum_{j=1}^{i-1}proj_{\mathbf{u_j}}(\mathbf{a_i})$$
+and finally, with $q_i = \frac{\vec{u_i}}{||\vec{ui}||}$, set $Q = [q_1, q_2, ¡¤ ¡¤ ¡¤ ,q_p]$ as a column-normalized version of $U = [u_i]_{i=1,...,p}$.
+
+(a) Show that $C = Q^TA$ is upper triangular and that $C$ is the Cholesky factor of $A^TA$.
+
+A has a thin decomposition $A=QR$, thus $R$ is an upper triangularmatrix
+
+$$C^TC=(Q^TA)^T(Q^TA)=A^TQQ^TA=A^TA$$
+Therefore, $C$ is the Cholesky factor of $A^TA$.
+
+(b) Write a R function that computes the $Q$ orthogonal factor of a Vandermonde matrix with base vector **x** and degree $d$ without computing the Vandermonde matrix explicitly, that is, as your function iterates to compute **u**$_i$, compute and use the columns of the Vandermonde matrix on the fly.
+```{r}
+gramschmidtb <- function(x,d) {
+  p <- d + 1
+  n <- length(x)
+  q <- matrix(0, n, p)
+  r <- matrix(0, p, p)
+  for (i in 1:p) {
+    u = x^(i-1)
+    if (i > 1) {
+      for (j in 1:(i-1)) {
+        r[j,i] <- t(q[,j]) %*% x^(i-1) 
+        u <- u - r[j,i] * q[,j]
+      }
+    }
+    r[i,i] <- norm2(u)
+    q[,i] <- u/norm2(u)
+  }
+  return(list("Q"=q,"R"=r))
+}
+x <-c(1,2,3,4,5);d <- 3
+gramschmidtb(x,d)
+```
+
+(c) It can be shown that with 
+$\eta_1 = 1$,$\eta_{i+1} = \vec{u_i}^T\vec{u_i}$, and $\alpha_i =\frac{\vec{u_i}^TDiag(x)\vec{u_i}}{\vec{u_i}^T\vec{u_i}}$, for $i = 1, . . . , d + 1$,
+where Diag(**x**) is a diagonal matrix with diagonal entries **x**, the $U$ matrix canbe computed using the recurrence relation: $u_1 = 1_n, u_2 = x - ¦Á_11_n$, and, for $i = 2, . . . , d$,
+$$(\mathbf{u}_{i+1})_j = (x_j - ¦Á_i)(\mathbf{u}_i)_j -\frac{¦Ç_{i+1}}{¦Ç_i}(\mathbf{u}_{i-1})_j$$
+for $j = 1, . . . , n$.Write a R function that, given $¦Ç$ and $¦Á$, computes $Q$
+```{r}
+etalphaq <- function(eta,alpha,x,d) {
+  u <- matrix(NA,length(x),d+1)
+  u[,1] <- rep(1,length(x))
+  u[,2] <- x - alpha[1]*rep(1,length(x))
+  for (i in 3:(d+1)) {
+    for (j in 1:length(x)) {
+      u[j,i] <- (x[j]-alpha[i-1])*u[j,(i-1)]-(eta[i]/eta[i-1])*u[j,(i-2)]
+    }
+  }
+  return(normalize.col(u))
+}
+```
+(d) Now modify your function in (b) to also compute $¦Á$ and $¦Ç$. Quick check for the ¡°compact¡± representation of $Q$: show that $¦Á_1 = \bar{x}$, $¦Ç_2 = n$, and $¦Ç_3 = (n - 1)s_x^2$,where $\bar{x}$ and $s_x^2$ are the sample mean and variance of $x$ respectively
+```{r}
+# would be added to the row before the command for problem(d)
+gramschmidtd <- function(x,d) {
+  
+  p <- d + 1
+  n <- length(x)
+  U <- matrix(0, n, p)
+  q <- matrix(0, n, p)
+  r <- matrix(0, p, p)
+  ###################################################################################################
+  eta <- rep(NA,p)
+  ###################################################################################################
+  alpha <- rep(NA,p)
+  
+  for (j in 1:p) {
+    u = x^(j-1)
+    eta[1] <- 1
+    if (j > 1) {
+      for (i in 1:(j-1)) {
+        r[i,j] <- t(q[,i]) %*% x^(j-1) 
+        u <- u - r[i,j] * q[,i] 
+      }
+      ###############################################################################################
+      eta[j] <- crossprod(u,u)
+    }
+    
+    U[,j] <- u
+    r[j,j] <- norm2(u)
+    q[,j] <- u/norm2(u)
+    #################################################################################################
+    alpha[j] <- (t(u)%*%diag(x)%*%u)/crossprod(u,u)
+    
+  }
+  
+  return(list(q,eta,alpha))
+}
+```
+$$\alpha_1=\frac{\mathbf{u_1}^TDiag(\mathbf{x})\mathbf{u_1}}{\mathbf{u_1}^T\mathbf{u_1}}=\frac{\sum_{i=1}^{n}x_i}{||\mathbf{u_1}||^2}=\frac{\sum_{i=1}^{n}x_i}{n}=\bar{x}$$
+$$\eta_2=\mathbf{u_1}^T\mathbf{u_1}=||\mathbf{u_1}||^2=n$$
+$$\eta_3 = \mathbf{u}_2^T\mathbf{u}_2$$
+$$\mathbf{u}_2=\mathbf{x}-\alpha_1\mathbf{1_n}=\mathbf{x}-\bar{\mathbf{x}}\mathbf{1_n}=\mathbf{x}-\bar{\mathbf{x}}$$
+$$\eta_3 = \mathbf{u}_2^T\mathbf{u}_2 = \sum_{j=1}^n(x_j-\bar{x})^2=(n-1)s_{\mathbf{x}}^2$$
+4. (Orthogonal staged regression) Suppose we observe $\mathbf{y}$ $¡« N(X¦Â, ¦Ò^2I_n)$, $X$ a $n$-by-$p$ full rank matrix, and wish to test
+$$H_0 : ¦Â_j = ¦Â_{j+1} = ¡¤ ¡¤ ¡¤ = ¦Â_p = 0$$
+for some $j ¡Ý 1$. It can be shown that the ML estimator $\hat¦Â = (X^TX)^{-1}X^T\mathbf{y}$ has distribution 
+$\hat¦Â ¡« N(¦Â, ¦Ò_2(X^TX)^{-1})$.
+
+(a) If $X$ has thin $QR$ decomposition $X = QR$, show that $H_0$ is equivalent to testing
+$¦Ã_j = ¡¤ ¡¤ ¡¤ = ¦Ã_p = 0$ where $¦Ã = R¦Â$, and so we can regress $\mathbf{y}$ on $Q$ instead of $X$, that is, estimate $¦Ã$ from $\mathbf{y}\texttt{~}N(Q¦Ã, ¦Ò^2I_n)$.
+
+
+
+For matrix $X$ has a thin $QR$ decomposition i.e. $n>p$:
+
+$$X_{n\times{p}}=\left[\begin{array}{rrr} Q & Q_1 \\\end{array}\right]_{n\times{n}}\left[\begin{array}{rrr} R\\ 0 \\\end{array}\right]_{n\times{p}}=Q_{n\times{p}}R_{p\times{p}}$$
+$$E[\mathbf{y}]=\mathbf{\hat{y}}=X\beta=QR\beta=Q\gamma$$
+(b) Show that the ML estimator for $¦Ã$ is $\hat¦Ã = Q^Ty$ and the components of $\hat¦Ã$ are independent.
+
+$$\begin{split}\hat¦Â & = (X^TX)^{-1}X^T\mathbf{y} \\
+                     & = ((QR)^TQR)^{-1}(QR)^T\mathbf{y}\\
+                     & = (R^TQ^TQR)^{-1}R^TQ^T\mathbf{y}\\
+                     & = (R^TR)^{-1}R^TQ^T\mathbf{y}\\
+                     & = R^{-1}Q^T\mathbf{y}\\
+                     & \\
+                     & R\hat{\beta}=Q^T\mathbf{y}\\
+                     & \hat{\gamma}=Q^T\mathbf{y}\end{split}$$
+
+
+To prove the components of $\hat{\gamma}$ are independent, consider:
+$$\begin{split}\hat{\gamma} & = R\hat{\beta} \\
+                            & = \left[\begin{array}{rrr}\vec{r_1}\\
+                                                        \vec{r_2}\\
+                                                        :\\
+                                                        \vec{r_p}
+                                                        \end{array}\right]\hat{\beta}
+                                                        =\left[\begin{array}{rrr}
+                                                        \vec{r_1}\hat{\beta}\\
+                                                        \vec{r_2}\hat{\beta}\\
+                                                        :\\
+                                                        \vec{r_p}\hat{\beta}
+                                                        \end{array}\right]\end{split}$$
+
+
+(c) Using R, explain how you compute: (i) the ML estimate $\hat{\beta}$ as a function of $\hat{¦Ã}$.(ii) the correlation matrix of $\hat{\beta}$ using only $\texttt{crossprod, normalize.cols, and inv.upper.tri}$
+
+```{r}
+betamle <- function(X,y) {
+  stopifnot(nrow(X)>=ncol(X))
+  
+  GS <- gramSchmidt(X)
+  GSQ <- GS$Q
+  GSR <- GS$R
+  GSgamma <- crossprod(GSQ, y)
+  GSbeta <- inv.upper.tri(R,F) %*% GSgamma
+  
+  return(GSbeta)
+}
+```
+
+
+(d)
+
+i.
+```{r}
+cars
+attach(cars)
+gramspeed3 <- gramschmidtb(speed,3)
+gramspeed3$Q
+
+gammaspeed <- crossprod(gramspeed3$Q,dist)
+gammaspeed
+coef(lm(dist ~ gramspeed3$Q - 1))
+```
+
+ii.
+```{r}
+inv.upper.tri(gramspeed3$R,F) %*% gammaspeed
+coef(lm(dist ~ vandermonde(speed,3) - 1))
+```
+
+iii
+```{r}
+summary(lm(dist ~ gramspeed3$Q - 1))
+summary(lm(dist ~ vandermonde(speed,3) - 1))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
