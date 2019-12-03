@@ -39,4 +39,4 @@ URL: https://raw.githack.com/wbteng9526/Computational-Statistics/master/project5
 
 Topics: E-M algorithm, Newton-Raphson method, bootstrap, kernel density esitimation
 
-https://raw.githack.com/wbteng9526/Computational-Statistics/master/final_project.html
+URL: https://raw.githack.com/wbteng9526/Computational-Statistics/master/final_project.html
